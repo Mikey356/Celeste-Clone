@@ -28,8 +28,8 @@ LRESULT CALLBACK windows_window_callback(HWND window, UINT msg, WPARAM wParam, L
         {
             RECT rect{};
             GetClientRect(window, &rect);
-            input.screenSizeX = rect.right - rect.left;
-            input.screenSizeY = rect.bottom - rect.top;
+            input->screenSizeX = rect.right - rect.left;
+            input->screenSizeY = rect.bottom - rect.top;
 
             break;
         }        
@@ -212,7 +212,7 @@ bool platform_create_window(int width, int height, char* title)
     const int contextAttribs[] =
     {
       WGL_CONTEXT_MAJOR_VERSION_ARB, 4,
-      WGL_CONTEXT_MINOR_VERSION_ARB, 6,
+      WGL_CONTEXT_MINOR_VERSION_ARB, 3,
       WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
       WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_DEBUG_BIT_ARB,
       0 // Terminate the Array
@@ -270,4 +270,28 @@ void* platform_load_gl_function(char* funName)
 void platform_swap_buffers()
 {
   SwapBuffers(dc);
+}
+
+
+void* platform_load_dynamic_library(char* dll)
+{
+    HMODULE result = LoadLibraryA(dll);
+    SM_ASSERT(result, "Failed to load dll: %s", dll);
+
+    return result;
+}
+
+void* platform_load_dynamic_function(void* dll, char* funName)
+{
+    FARPROC proc = GetProcAddress((HMODULE)dll, funName);
+    SM_ASSERT(proc, "Failed to load function: %s from DLL", funName);
+
+    return (void*)proc;
+}
+bool platform_free_dynamic_library(void* dll)
+{
+    BOOL freeResult =  FreeLibrary((HMODULE)dll);
+    SM_ASSERT(freeResult, "Failed to free FreeLibrary");
+
+    return (bool)freeResult;
 }
