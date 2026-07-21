@@ -10,6 +10,8 @@
 // Used to get the edit timestamp of files
 #include <sys/stat.h>
 
+#include <math.h>
+
 // ############################################################
 //                     Defines 
 // ############################################################
@@ -23,6 +25,7 @@
 #define EXPORT_FN
 #endif
 
+#define b8 char
 #define BIT(x) 1 << (x)
 #define KB(x) ((unsigned long long)1024 * x)
 #define MB(x) ((unsigned long long)1024 * KB(x))
@@ -99,6 +102,49 @@ void _log(char* prefix, char* msg, TextColor textColor, Args... args)
         SM_ERROR("Assertion Hit!")   \
     }                                \
 }                                    \
+
+// #############################################################################
+//                           Array
+// #############################################################################
+template<typename T, int N>
+struct Array
+{
+  static constexpr int maxElements = N;
+  int count = 0;
+  T elements[N];
+
+  T& operator[](int idx)
+  {
+    SM_ASSERT(idx >= 0, "idx negative!");
+    SM_ASSERT(idx < count, "Idx out of bounds!");
+    return elements[idx];
+  }
+
+  int add(T element)
+  {
+    SM_ASSERT(count < maxElements, "Array Full!");
+    elements[count] = element;
+    return count++;
+  }
+
+  void remove_idx_and_swap(int idx)
+  {
+    SM_ASSERT(idx >= 0, "idx negative!");
+    SM_ASSERT(idx < count, "idx out of bounds!");
+    elements[idx] = elements[--count];
+  }
+
+  void clear()
+  {
+    count = 0;
+  }
+
+  bool is_full()
+  {
+    return count == N;
+  }
+};
+
 // #############################################################################
 //                           Bump Allocator
 // #############################################################################
@@ -293,6 +339,22 @@ bool copy_file(const char* fileName, const char* outputName, BumpAllocator* bump
 // ############################################################
 //                        Math Stuff 
 // ############################################################
+long long max(long long a, long long b)
+{
+  if(a > b)
+  {
+    return a;
+  }
+
+
+  return b;
+}
+
+float lerp(float a, float b, float t)
+{
+  return a + (b - a) * t;
+}
+
 struct Vec2
 {
     float x;
@@ -313,11 +375,32 @@ struct IVec2
 {
     int x;
     int y;
+
+    IVec2 operator-(IVec2 other)
+    {
+      return {x - other.x, y - other.y};
+    }
 };
 
 Vec2 vec_2(IVec2 v)
 {
   return Vec2{(float)v.x, (float)v.y};
+}
+
+Vec2 lerp(Vec2 a, Vec2 b, float t)
+{
+  Vec2 result;
+  result.x = lerp(a.x, b.x, t);
+  result.y = lerp(a.y, b.y, t);
+  return result;
+}
+
+IVec2 lerp(IVec2 a, IVec2 b, float t)
+{
+  IVec2 result;
+  result.x = (int)floorf(lerp((float)a.x, (float)b.x, t));
+  result.y = (int)floorf(lerp((float)a.y, (float)b.y, t)); 
+  return result;
 }
 
 struct Vec4

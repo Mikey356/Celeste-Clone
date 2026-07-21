@@ -22,6 +22,8 @@ struct GLContext
     GLuint transformSBOID;
     GLuint screenSizeID;
     GLuint orthoProjectionID;
+    long long textureTimeStamp;
+    long long shaderTimeStamp;
 };
 
 // #############################################################################
@@ -42,7 +44,36 @@ static void APIENTRY gl_debug_callback(GLenum source, GLenum type, GLuint id, GL
     SM_ASSERT(false, "OpenGL Error: %s", message);
   }
 }
+GLuint gl_create_shader(int shaderType, char* shaderPath, BumpAllocator* transientStorage)
+{
+  int fileSize = 0;
+  char* vertShader = read_file(shaderPath, &fileSize, transientStorage);
+  if(!vertShader)
+  {
+    SM_ASSERT(false, "Failed to load shader: %s", shaderPath);
+    return 0;
+  }
 
+  GLuint shaderID = glCreateShader(shaderType);
+  glShaderSource(shaderID, 1, &vertShader, 0);
+  glCompileShader(shaderID);
+
+  // Test if Shader compiled successfully 
+  {
+    int success;
+    char shaderLog[2048] = {};
+
+    glGetShaderiv(shaderID, GL_COMPILE_STATUS, &success);
+    if(!success)
+    {
+      glGetShaderInfoLog(shaderID, 2048, 0, shaderLog);
+      SM_ASSERT(false, "Failed to compile %s Shader, Error: %s", shaderPath, shaderLog);
+      return 0;
+    }
+  }
+
+  return shaderID;
+}
 bool gl_init(BumpAllocator* transientStorage)
 {
     load_gl_functions();
@@ -50,53 +81,22 @@ bool gl_init(BumpAllocator* transientStorage)
     glDebugMessageCallback(&gl_debug_callback, nullptr);
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
     glEnable(GL_DEBUG_OUTPUT);
+   
+    GLuint vertShaderID = gl_create_shader(GL_VERTEX_SHADER, "assets/shaders/quad.vert", transientStorage);
+   
+    GLuint fragShaderID = gl_create_shader(GL_FRAGMENT_SHADER, "assets/shaders/quad.frag", transientStorage);
     
-    GLuint vertShaderID = glCreateShader(GL_VERTEX_SHADER);
-    GLuint fragShaderID = glCreateShader(GL_FRAGMENT_SHADER);
-    
-    int fileSize = 0;
-    char* vertShader = read_file("assets/shaders/quad.vert", &fileSize, transientStorage);
-    char* fragShader = read_file("assets/shaders/quad.frag", &fileSize, transientStorage);
-
-    if(!vertShader || !fragShader)
+    if(!vertShaderID || !fragShaderID)
     {
-        SM_ASSERT(false, "Failed to load shader");
+        SM_ASSERT(false, "Failed to create shaders!");
         return false;
     }
-
-    glShaderSource(vertShaderID, 1, &vertShader, 0);
-    glShaderSource(fragShaderID, 1, &fragShader, 0);
-
-    glCompileShader(vertShaderID);
-    glCompileShader(fragShaderID);
-
-    // Test if Vertex Shader compiled successfully
-    {
-        int success;
-        char shaderLog[2048] = {};
-
-        glGetShaderiv(vertShaderID, GL_COMPILE_STATUS, &success);
-        if(!success)
-        {
-            glGetShaderInfoLog(vertShaderID, 2048, 0, shaderLog);
-            SM_ASSERT(false, "Failed to compile Vertex Shaders %s", shaderLog);
-        }
-    }
-    
-    // Test if Fragment Shader compiled successfully
-    {
-        int success;
-        char shaderLog[2048] = {};
-
-        glGetShaderiv(fragShaderID, GL_COMPILE_STATUS, &success);
-        if(!success)
-        {
-            glGetShaderInfoLog(fragShaderID, 2048, 0, shaderLog);
-            SM_ASSERT(false, "Failed to compile Fragment Shaders %s", shaderLog);
-        }
-    }
+      long long timestampVert = get_timestamp("assets/shaders/quad.vert");
+  long long timestampFrag = get_timestamp("assets/shaders/quad.frag");
+  glContext.shaderTimeStamp = max(timestampVert, timestampFrag);
     
     glContext.programID = glCreateProgram();
+
     glAttachShader(glContext.programID, vertShaderID);
     glAttachShader(glContext.programID, fragShaderID);
     glLinkProgram(glContext.programID);
@@ -132,6 +132,8 @@ bool gl_init(BumpAllocator* transientStorage)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         
         glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB8_ALPHA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+        glContext.textureTimeStamp = get_timestamp(TEXTURE_PATH);
+
         stbi_image_free(data);
     }
 
@@ -139,7 +141,7 @@ bool gl_init(BumpAllocator* transientStorage)
     {
         glGenBuffers(1, &glContext.transformSBOID);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, glContext.transformSBOID);
-        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(Transform) * MAX_TRANSFORMS, renderData->transforms, GL_DYNAMIC_DRAW);
+        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(Transform) * renderData->transforms.maxElements, renderData->transforms.elements, GL_DYNAMIC_DRAW);
     }
 
     // Uniforms
@@ -162,14 +164,61 @@ bool gl_init(BumpAllocator* transientStorage)
 }
 
 
-void gl_render()
+void gl_render(BumpAllocator* transientStorage)
 {
+
+   // Texture Hotloading
+   {
+    long long currentTimeStamp = get_timestamp(TEXTURE_PATH);
+    
+    if(currentTimeStamp > glContext.textureTimeStamp)
+    {
+        glActiveTexture(GL_TEXTURE0);
+        int width, height, nChannels;
+        char* data = (char*)stbi_load(TEXTURE_PATH, &width, &height, &nChannels, 4);
+        if(data)
+        {
+            glContext.textureTimeStamp = currentTimeStamp;
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB8_ALPHA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+            stbi_image_free(data);
+        }
+    }
+   }
+
+
+   // Shader Hotloading
+   {
+    
+    long long timeStampVert = get_timestamp("assets/shaders/quad.vert"); 
+    long long timeStampFrag = get_timestamp("assets/shaders/quad.frag"); 
+    if(timeStampVert > glContext.shaderTimeStamp || timeStampFrag > glContext.shaderTimeStamp)
+    {
+        GLuint vertShaderID = gl_create_shader(GL_VERTEX_SHADER, "assets/shaders/quad.vert", transientStorage);
+        GLuint fragShaderID = gl_create_shader(GL_FRAGMENT_SHADER, "assets/shaders/quad.frag", transientStorage);
+        
+        if(!vertShaderID || !fragShaderID)
+        {
+            SM_ASSERT(false, "Failed to load shaders");
+            return;
+        }
+        glAttachShader(glContext.programID, vertShaderID);
+        glAttachShader(glContext.programID, fragShaderID);
+        glLinkProgram(glContext.programID);
+
+        glDetachShader(glContext.programID, vertShaderID);
+        glDetachShader(glContext.programID, fragShaderID);
+        glDeleteShader(vertShaderID);
+        glDeleteShader(fragShaderID);
+
+        glContext.shaderTimeStamp = max(timeStampVert, timeStampFrag);
+    }
+   }
     glClearColor(119.0f / 255.0f, 33.0f / 255.0f, 111.0f / 255.0f, 1.0f);
     glClearDepth(0.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glViewport(0, 0, input->screenSizeX, input->screenSizeY);
+    glViewport(0, 0, input->screenSize.x, input->screenSize.y);
 
-    Vec2 screenSize = {(float)input->screenSizeX, (float)input->screenSizeY};
+    Vec2 screenSize = {(float)input->screenSize.x, (float)input->screenSize.y};
     glUniform2fv(glContext.screenSizeID, 1, &screenSize.x);
 
     // Orthographic Projection
@@ -182,17 +231,13 @@ void gl_render()
     // Opaque Objects
     {
         // Copy transforms to the GPU
-        glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(Transform) * renderData->transformCount, renderData->transforms);
+        glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(Transform) * renderData->transforms.count, renderData->transforms.elements);
         
-        glDrawArraysInstanced(GL_TRIANGLES, 0, 6, renderData->transformCount);
+        glDrawArraysInstanced(GL_TRIANGLES, 0, 6, renderData->transforms.count);
         
         // Reset for next Frame
-        renderData->transformCount = 0;
+        renderData->transforms.clear();
     }
 
 }
-
-
-
-
 

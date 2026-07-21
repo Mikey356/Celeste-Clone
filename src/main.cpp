@@ -10,6 +10,8 @@
 #define GL_GLEXT_PROTOTYPES
 #include "glcorearb.h"
 
+static KeyCodeID KeyCodeLookupTable[KEY_COUNT];
+
 #ifdef _WIN32
 #include "win32_platform.cpp"
 #endif
@@ -26,9 +28,16 @@ static update_game_type* update_game_ptr;
 // #############################################################################
 //                          Cross Platform functions
 // #############################################################################
+// Used to get Delta Time
+#include <chrono>
+double get_delta_time();
 void reload_game_dll(BumpAllocator* transientStorage);
+
 int main()
 {
+    // Initialize timestamp
+    get_delta_time();
+
     BumpAllocator transientStorage = make_bump_allocator(MB(50));
     BumpAllocator persistentStorage = make_bump_allocator(MB(50));
     
@@ -51,18 +60,20 @@ int main()
         SM_ERROR("Failed to allocate GameState");
         return -1;
     } 
-    platform_create_window(1240, 720, "Cakezussop");
-    input->screenSizeX = 1200; 
-    input->screenSizeY = 720; 
+    
+    platform_fill_keycode_lookup_table(); 
+    platform_create_window(1280, 720, "Cakezussop");
+    platform_set_vsync(true);    
     gl_init(&transientStorage);
     
     while(running)
     {
+        float dt = get_delta_time();
         reload_game_dll(&transientStorage); 
         // Update
         platform_update_window();
-        update_game(gameState, renderData, input);
-        gl_render(); 
+        update_game(gameState, renderData, input, dt);
+        gl_render(&transientStorage); 
         platform_swap_buffers();
         
         transientStorage.used = 0;
@@ -71,10 +82,24 @@ int main()
     return 0;
 }
 
-void update_game(GameState* gameStateIn, RenderData* renderDataIn, Input* inputIn)
+void update_game(GameState* gameStateIn, RenderData* renderDataIn, Input* inputIn, float dt)
 {
-    update_game_ptr(gameStateIn, renderDataIn, inputIn);
+    update_game_ptr(gameStateIn, renderDataIn, inputIn, dt);
 }
+
+double get_delta_time()
+{
+    // Only executed once when entering the function (static)
+    static auto lastTime = std::chrono::steady_clock::now();
+    auto currentTime = std::chrono::steady_clock::now();
+
+    // seconds
+    double delta = std::chrono::duration<double>(currentTime - lastTime).count();
+    lastTime = currentTime;
+
+    return delta;
+}
+
 
 void reload_game_dll(BumpAllocator* transientStorage)
 {
