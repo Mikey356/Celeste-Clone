@@ -116,7 +116,7 @@ void simulate()
       if(player.speed.x < 0) {
         player.renderOptions = RENDER_OPTION_FLIP_X; 
       }
-      
+
       if(just_pressed(JUMP) && grounded)
       {
         player.speed.y = jumpSpeed;
@@ -584,7 +584,7 @@ EXPORT_FN void update_game(GameState* gameStateIn, RenderData* renderDataIn, Inp
     }
     if(!gameState->initialized)
     {
-        // play_sound("First Steps", SOUND_OPTION_LOOP);
+        play_sound("First Steps", SOUND_OPTION_LOOP);
         renderData->gameCamera.dimensions = {WORLD_WIDTH, WORLD_HEIGHT};
         gameState->initialized = true;
         
