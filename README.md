@@ -18,3 +18,8 @@ Simple level platforming with moving platforms and audio
 
 
 <img width="952" height="534" alt="Screenshot 2026-07-27 000120" src="https://github.com/user-attachments/assets/2b736585-4a75-4571-b727-f2397c0661a1" />
+
+
+7/26/2026
+Added run and jump animation
+
