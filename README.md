@@ -35,3 +35,12 @@ Added run and jump animation
 
 <img width="958" height="557" alt="Screenshot 2026-07-27 153822" src="https://github.com/user-attachments/assets/e4985669-5141-4fe0-8344-2278d8456e8e" />
 
+
+7/29/2026
+Basic UI and Text
+
+<img width="953" height="552" alt="Screenshot 2026-07-29 205439" src="https://github.com/user-attachments/assets/d4fbcef7-2bbb-41ba-aaf8-cd7e1f106ae2" />
+
+
+<img width="958" height="558" alt="Screenshot 2026-07-29 205852" src="https://github.com/user-attachments/assets/4a9eaf4f-f4ff-4c1e-98c7-32e788bd1815" />
+
