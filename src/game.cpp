@@ -93,6 +93,18 @@ void simulate()
 {
     float dt = UPDATE_DELAY;
 
+    int buttonID = line_id(1);
+    Vec4 color = COLOR_WHITE;
+
+    if(is_hot(buttonID)) {
+        color = COLOR_GREEN;
+    }
+
+    if(do_button(SPRITE_BUTTON_PLAY, IVec2{WORLD_WIDTH / 2, WORLD_HEIGHT / 2}, buttonID, {.material{.color = color}})) {
+        SM_TRACE("click");
+    }
+    do_ui_text("Exhaustion\nFinal\nBoss!", {0, 20}, {.material{.color = COLOR_RED}, .fontSize = 2.0f});
+    
     // Update Player
     {
       Player& player = gameState->player;
@@ -487,10 +499,10 @@ void simulate()
     }
 
     bool updateTiles = false;
-    if(is_down(MOUSE_LEFT))
+    if(is_down(MOUSE_LEFT) && !ui_is_hot() && !ui_is_active())
     {
         IVec2 worldPos = screen_to_world(input->mousePos);
-        IVec2 mouse = input->mousePosWorld; 
+        IVec2 mousePosWorld = input->mousePosWorld; 
         Tile* tile = get_tile(worldPos);
         if(tile)
         {
@@ -573,7 +585,7 @@ void simulate()
 // #############################################################################
 //                           Game Functions(exposed) 
 // #############################################################################
-EXPORT_FN void update_game(GameState* gameStateIn, RenderData* renderDataIn, Input* inputIn, SoundState* soundStateIn, float dt)
+EXPORT_FN void update_game(GameState* gameStateIn, RenderData* renderDataIn, Input* inputIn, SoundState* soundStateIn, UIState* uiStateIn, float dt)
 {
     if(renderData != renderDataIn)
     {
@@ -581,12 +593,18 @@ EXPORT_FN void update_game(GameState* gameStateIn, RenderData* renderDataIn, Inp
         renderData = renderDataIn;
         input = inputIn;
         soundState = soundStateIn;
+        uiState = uiStateIn;
     }
     if(!gameState->initialized)
     {
         play_sound("First Steps", SOUND_OPTION_LOOP);
         renderData->gameCamera.dimensions = {WORLD_WIDTH, WORLD_HEIGHT};
-        gameState->initialized = true;
+        renderData->gameCamera.position.x = 160;
+        renderData->gameCamera.position.y = -90;
+        
+        renderData->uiCamera.dimensions = {WORLD_WIDTH, WORLD_HEIGHT};
+        renderData->uiCamera.position.x = 160;
+        renderData->uiCamera.position.y = -90;
         
         // Player
         {
@@ -613,7 +631,7 @@ EXPORT_FN void update_game(GameState* gameStateIn, RenderData* renderDataIn, Inp
         
         // Key Mappings
         {
-           gameState->keyMappings[MOVE_UP].keys.add(KEY_W);
+           gameState->keyMappings[MOVE_UP].keys.add(KEY_SPACE);
            gameState->keyMappings[MOVE_UP].keys.add(KEY_UP);
            gameState->keyMappings[MOVE_DOWN].keys.add(KEY_S);
            gameState->keyMappings[MOVE_DOWN].keys.add(KEY_DOWN);
@@ -623,11 +641,9 @@ EXPORT_FN void update_game(GameState* gameStateIn, RenderData* renderDataIn, Inp
            gameState->keyMappings[MOVE_RIGHT].keys.add(KEY_RIGHT);
            gameState->keyMappings[MOUSE_LEFT].keys.add(KEY_MOUSE_LEFT);
            gameState->keyMappings[MOUSE_RIGHT].keys.add(KEY_MOUSE_RIGHT);
-           gameState->keyMappings[JUMP].keys.add(KEY_SPACE);
+           gameState->keyMappings[JUMP].keys.add(KEY_W);
         }
        
-        renderData->gameCamera.position.x = 160;
-        renderData->gameCamera.position.y = -90;
 
         // Solids
         {
@@ -647,6 +663,8 @@ EXPORT_FN void update_game(GameState* gameStateIn, RenderData* renderDataIn, Inp
             solid.speed.y = 50.0f;
             gameState->solids.add(solid);
         }
+    
+        gameState->initialized = true;
     }     
 
     // Fixed Update Loop
@@ -655,6 +673,7 @@ EXPORT_FN void update_game(GameState* gameStateIn, RenderData* renderDataIn, Inp
         while(gameState->updateTimer >= UPDATE_DELAY)
         {
             gameState->updateTimer -= UPDATE_DELAY;
+            update_ui(); 
             simulate();
 
             // Relative Mouse here, because more frames than simulation
@@ -673,10 +692,24 @@ EXPORT_FN void update_game(GameState* gameStateIn, RenderData* renderDataIn, Inp
         }
     }
 
-
-
     float interpolatedDT = (float)(gameState->updateTimer / UPDATE_DELAY);
     
+    // Draw UI
+    {
+        for(int uiElementIdx = 0; uiElementIdx < uiState->uiElements.count; uiElementIdx++)
+        {
+            UIElement& uiElement = uiState->uiElements[uiElementIdx];
+            draw_sprite(uiElement.spriteID, uiElement.pos, uiElement.drawData);
+        }
+        
+        for(int uiTextIdx = 0; uiTextIdx < uiState->uiTexts.count; uiTextIdx++)
+        {
+            UIText& uiText = uiState->uiTexts[uiTextIdx];
+            draw_ui_text(uiText.text, uiText.pos, uiText.textData);
+        }
+    }
+
+
     // Draw Solids
     {
         for(int solidIdx = 0; solidIdx < gameState->solids.count; solidIdx++)
@@ -719,6 +752,7 @@ EXPORT_FN void update_game(GameState* gameStateIn, RenderData* renderDataIn, Inp
                 // Draw Tile
                 Transform transform = {};
                 // Draw the tile around the center
+                transform.materialIdx = get_material_idx({.color = COLOR_WHITE});
                 transform.pos = {x * (float)TILESIZE, y * (float)TILESIZE};
                 transform.size = {8, 8};
                 transform.spriteSize = {8, 8};
@@ -726,6 +760,7 @@ EXPORT_FN void update_game(GameState* gameStateIn, RenderData* renderDataIn, Inp
                 draw_quad(transform);
             }
         }
-    }
- 
+    }        
 }
+ 
+

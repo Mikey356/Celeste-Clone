@@ -1,33 +1,19 @@
-#version 430 core
-
-#define BIT(x) 1 << x
-
-int RENDER_OPTION_FLIP_X = BIT(0);
-int RENDER_OPTION_FLIP_Y = BIT(1);
-
-    
-// Structs
-struct Transform
-{
-    vec2 pos;
-    vec2 size;
-    ivec2 atlasOffset;
-    ivec2 spriteSize;
-    int animationIdx;
-    int renderOptions;
-};
 
 // Input
-layout(std430, binding = 0) buffer TransformSBO
-{
+
+//Output
+layout (location = 0) out vec2 textureCoordsOut;
+layout (location = 1) out int renderOptions;
+layout (location = 2) out int materialIdx;
+
+// Buffers
+layout (std430, binding = 0) buffer TransformSBO {
     Transform transforms[];
 };
 
 uniform vec2 screenSize;
 uniform mat4 orthoProjection;
 
-//Output
-layout(location = 0) out vec2 textureCoordsOut;
 
 void main()
 {
@@ -48,14 +34,14 @@ void main()
     int right = transform.atlasOffset.x + transform.spriteSize.x;
     int bottom = transform.atlasOffset.y + transform.spriteSize.y;
 
-    if(bool(transform.renderOptions & RENDER_OPTION_FLIP_X)) 
+    if(bool(transform.renderOptions & RENDERING_OPTION_FLIP_X)) 
     {
         int tmp = left;
         left = right;
         right = tmp;
     } 
 
-    if(bool(transform.renderOptions & RENDER_OPTION_FLIP_Y)) 
+    if(bool(transform.renderOptions & RENDERING_OPTION_FLIP_Y)) 
     {
         int tmp = top;
         top = bottom;
@@ -79,4 +65,6 @@ void main()
        gl_Position =  orthoProjection * vec4(vertexPos, 0.0, 1.0);
      }
     textureCoordsOut = textureCoords[gl_VertexID];
+    renderOptions = transform.renderOptions;
+    materialIdx = transform.materialIdx;
 }

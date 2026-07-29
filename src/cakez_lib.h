@@ -32,6 +32,7 @@ constexpr int SAMPLE_RATE = 44100;
 #define EXPORT_FN
 #endif
 
+#define line_id(index) (size_t)((__LINE__ << 16) | (index))
 #define ArraySize(x) (sizeof((x)) / sizeof((x)[0]))
 
 #define b8 char
@@ -358,6 +359,16 @@ float sign(float x)
   return (x>= 0.0f) ? 1.0f : -1.0f;
 }
 
+int min(int a, int b)
+{
+  return (a < b) ? a : b;
+}
+
+int max(int a, int b)
+{
+  return (a > b) ? a : b;
+}
+
 long long max(long long a, long long b)
 {
   if(a > b)
@@ -407,13 +418,15 @@ struct Vec2
     float x;
     float y;
 
-    Vec2 operator/(float scalar)
-    {
+    Vec2 operator/(float scalar) {
       return {x / scalar, y / scalar};
     }
 
-    Vec2 operator-(Vec2 other)
-    {
+    Vec2 operator*(float scalar) {
+      return {x * scalar, y * scalar};
+    }
+
+    Vec2 operator-(Vec2 other) {
       return {x - other.x, y - other.y};
     }
 };
@@ -423,8 +436,7 @@ struct IVec2
     int x;
     int y;
 
-    // IVec2 operator-(IVec2 other)
-    // {
+    // IVec2 operator-(IVec2 other)  {
     //   return {x - other.x, y - other.y};
     // }
     IVec2& operator-(IVec2 other)
@@ -440,13 +452,11 @@ struct IVec2
       return *this;
     }
 
-    IVec2 operator+=(int value)
-    {
+    IVec2 operator+=(int value) {
 	     return {x += value, y += value};
     }
 
-    IVec2 operator/(int scalar)
-    {
+    IVec2 operator/(int scalar) {
       return {x / scalar, y / scalar};
     }
 };
@@ -495,9 +505,12 @@ struct Vec4
 
     
   };
-   float& operator[](int idx)
-   {
+   float& operator[](int idx) {
       return values[idx];
+   }
+
+   bool operator==(Vec4 other) {
+      return x == other.x && y == other.y && z == other.z && w == other.w;
    }
 
 };
@@ -531,10 +544,9 @@ struct Mat4
     };
     
   };
-  Vec4& operator[](int col)
-  {
+  Vec4& operator[](int col) {
      return values[col];
-      }
+  }
 };
 
 Mat4 orthographic_projection(float left, float right, float top, float bottom)
@@ -570,7 +582,11 @@ bool point_in_rect(Vec2 point, Rect rect)
 
 bool point_in_rect(Vec2 point, IRect rect)
 {
-  return (point.x >= rect.pos.x && point.x <= rect.pos.x + rect.size.x && point.y >= rect.pos.y && point.y <= rect.pos.y);
+  return (point.x >= rect.pos.x && point.x <= rect.pos.x + rect.size.x && point.y >= rect.pos.y && point.y <= rect.pos.y + rect.size.y);
+}
+
+bool point_in_rect(IVec2 point, IRect rect) {
+  return point_in_rect(vec_2(point), rect); 
 }
 
 bool rect_collision(IRect a, IRect b)
@@ -643,3 +659,14 @@ WAVFile* load_wav(char* path, BumpAllocator* bumpAllocator)
 
 	return wavFile;
 }
+
+
+// ############################################################
+//                     Normal Colors 
+// ############################################################
+constexpr Vec4 COLOR_WHITE = {1.0f, 1.0f, 1.0f, 1.0f};
+constexpr Vec4 COLOR_RED = {1.0f, 0.0f, 0.0f, 1.0f};
+constexpr Vec4 COLOR_GREEN = {0.0f, 1.0f, 0.0f, 1.0f};
+constexpr Vec4 COLOR_BLUE = {0.0f, 0.0f, 1.0f, 1.0f};
+constexpr Vec4 COLOR_YELLOW = {1.0f, 1.0f, 0.0f, 1.0f};
+constexpr Vec4 COLOR_BLACK = {0.0f, 0.0f, 0.0f, 1.0f};

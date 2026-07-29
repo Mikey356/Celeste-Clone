@@ -6,6 +6,8 @@
 
 #include "sound.h"
 
+#include "ui.h"
+
 #include "platform.h"
 
 #define APIENTRY
@@ -78,6 +80,13 @@ int main()
         return -1;
     } 
 
+    uiState = (UIState*)bump_alloc(&persistentStorage, sizeof(UIState));
+    if(!uiState)
+    {
+        SM_ERROR("Failed to allocate UIState");
+        return -1;
+    }
+
     platform_fill_keycode_lookup_table(); 
     platform_create_window(1280, 720, "Cakezussop");
     platform_set_vsync(true);    
@@ -95,7 +104,7 @@ int main()
         reload_game_dll(&transientStorage); 
         // Update
         platform_update_window();
-        update_game(gameState, renderData, input, soundState, dt);
+        update_game(gameState, renderData, input, soundState, uiState, dt);
         gl_render(&transientStorage); 
         platform_update_audio(dt);
         
@@ -107,9 +116,9 @@ int main()
     return 0;
 }
 
-void update_game(GameState* gameStateIn, RenderData* renderDataIn, Input* inputIn, SoundState* soundStateIn, float dt)
+void update_game(GameState* gameStateIn, RenderData* renderDataIn, Input* inputIn, SoundState* soundStateIn, UIState* uiStateIn, float dt)
 {
-    update_game_ptr(gameStateIn, renderDataIn, inputIn, soundStateIn, dt);
+    update_game_ptr(gameStateIn, renderDataIn, inputIn, soundStateIn, uiStateIn, dt);
 }
 
 double get_delta_time()

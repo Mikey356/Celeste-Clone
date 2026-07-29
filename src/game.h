@@ -4,6 +4,7 @@
 #include "cakez_lib.h"
 #include "renderer_interface.h"
 #include "sound.h"
+#include "ui.h"
 
 // #############################################################################
 //                           Game Globals 
@@ -97,5 +98,10 @@ static GameState* gameState;
 // #############################################################################
 extern "C"
 {
-    EXPORT_FN void update_game(GameState* gameStateIn, RenderData* renderDataIn, Input* inputIn, SoundState* soundStateIn, float dt);
+    EXPORT_FN void update_game(GameState* gameStateIn,
+                               RenderData* renderDataIn,
+                               Input* inputIn,
+                               SoundState* soundStateIn, 
+                               UIState* uiStateIn, 
+                               float dt);
 }
